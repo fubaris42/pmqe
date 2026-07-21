@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# App artifacts
+*.log
+*.log.*
+.ocr_cache.db*
+extraction_history.db
+report.csv
+merged_all_queries.pdf
+
+# PyInstaller
+*.spec.bak
+
+# OS
+Thumbs.db
+.DS_Store
