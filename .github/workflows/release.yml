@@ -18,6 +18,8 @@ jobs:
           - os: macos-14
             artifact: pmqe-macos-arm64
     runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: "3.13" # build with a Python version CI tests, not whatever the runner has
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

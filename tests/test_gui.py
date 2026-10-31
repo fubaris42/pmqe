@@ -28,6 +28,15 @@ def ui_theme(qapp):
     theme.install(qapp, "light")
 
 
+@pytest.fixture(autouse=True)
+def clear_clipboard(qapp):
+    yield
+    # Qt's offscreen platform keeps clipboard data in a C++ global that is freed
+    # after Python has shut down, so data set from Python crashes the test run on
+    # exit. Desktop platforms free it while the app closes, so the app is fine.
+    qapp.clipboard().clear()
+
+
 @pytest.fixture
 def run_dir(tmp_path: Path) -> str:
     make_pdf(tmp_path / "in" / "a.pdf", ["invoice total due", "total only", "invoice only"])
