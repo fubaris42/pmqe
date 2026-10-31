@@ -54,7 +54,14 @@ uv tool install .           # or install the `pmqe` command
 ```
 
 From 2.0.0, each [GitHub release](https://github.com/fubaris42/pmqe/releases)
-includes ready-made Windows and macOS (Apple Silicon) apps.
+includes ready-made Windows and macOS (Apple Silicon) apps: unzip, then run
+`pmqe\pmqe.exe` on Windows, or move `pmqe.app` to Applications on a Mac.
+
+The apps aren't code-signed yet, so the first launch shows a warning:
+
+- **Windows:** "Windows protected your PC" → **More info** → **Run anyway**.
+- **macOS:** "Apple could not verify…" → open **System Settings → Privacy &
+  Security** and click **Open Anyway**.
 
 ## Using it
 
