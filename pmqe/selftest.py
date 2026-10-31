@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import concurrent.futures as cf
 import json
-import multiprocessing
 import sys
 import tempfile
 import time
@@ -57,7 +56,7 @@ def _gui_renders(settings_path: Path) -> bool:
 def run(report_path: str | None = None) -> int:
     from . import __version__, ocr
     from .merge import merge_outputs_to_pdf
-    from .pipeline import RunOptions, run_pipeline
+    from .pipeline import RunOptions, run_pipeline, worker_context
     from .text import prepare_queries
     from .util import configure_logging
 
@@ -94,8 +93,7 @@ def run(report_path: str | None = None) -> int:
         details["failures"] = res.failures
         checks["merge"] = merge_outputs_to_pdf(str(work / "out")).files == 2
         checks["gui_renders"] = _gui_renders(work / "settings.ini")
-        ctx = multiprocessing.get_context("spawn" if sys.platform == "win32" else "forkserver")
-        with cf.ProcessPoolExecutor(1, mp_context=ctx) as pool:
+        with cf.ProcessPoolExecutor(1, mp_context=worker_context()) as pool:
             checks["workers_without_qt_gui"] = not pool.submit(_qt_gui_loaded).result(timeout=120)
     except Exception as exc:
         details["error"] = f"{type(exc).__name__}: {exc}"

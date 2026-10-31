@@ -231,6 +231,16 @@ def _drive_pool(
     return []
 
 
+def worker_context() -> multiprocessing.context.BaseContext:
+    """How worker processes start. On Linux they fork from a clean server
+    process (fast). Windows can only spawn; on macOS forking is unsafe once
+    Apple's frameworks are loaded, and the packaged app loads them in every
+    process (PyInstaller's Qt hook), so both spawn a fresh interpreter."""
+    return multiprocessing.get_context(
+        "spawn" if sys.platform in ("win32", "darwin") else "forkserver"
+    )
+
+
 def _run_pool(
     jobs: list[_Job],
     n_workers: int,
@@ -240,7 +250,7 @@ def _run_pool(
     collector: _Collector,
     cancelled: Callable[[], bool],
 ) -> None:
-    ctx = multiprocessing.get_context("spawn" if sys.platform == "win32" else "forkserver")
+    ctx = worker_context()
     stop_workers = ctx.Event()
     log_queue = ctx.Queue()
     listener = logging.handlers.QueueListener(
