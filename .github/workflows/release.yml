@@ -1,0 +1,68 @@
+name: Release
+
+# Builds the Windows and macOS (Apple Silicon) apps, verifies each with its
+# built-in self-test, and attaches them to the GitHub release for the tag.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: pmqe-windows-x64
+          - os: macos-14
+            artifact: pmqe-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group build
+
+      - name: Build and self-test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./build.ps1 -Clean
+          Compress-Archive -Path dist/pmqe -DestinationPath ${{ matrix.artifact }}.zip
+
+      - name: Build and self-test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./build.sh --clean
+          # The .app bundle must start too
+          QT_QPA_PLATFORM=offscreen ./dist/pmqe.app/Contents/MacOS/pmqe --self-test build/selftest-app.json
+          ditto -c -k --keepParent dist/pmqe.app ${{ matrix.artifact }}.zip
+
+      - name: Self-test report
+        if: always()
+        shell: bash
+        run: cat build/selftest*.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
