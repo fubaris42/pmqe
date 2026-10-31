@@ -76,6 +76,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+faulthandler_timeout = 120  # a hung test prints every thread's stack
 markers = [
     "ocr: runs the platform's real OCR engine",
 ]

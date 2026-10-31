@@ -5,15 +5,17 @@ module (and everything it imports) must stay free of Qt.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import io
 import logging
 import os
+import threading
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 import fitz  # PyMuPDF
 import pillow_heif
@@ -47,6 +49,25 @@ TEXT_LAYER_EMPTY = 32  # less than this plus any image: treat as a scan
 SCAN_COVERAGE = 0.5  # sparse text plus an image covering half the page: OCR
 
 Image.MAX_IMAGE_PIXELS = 300_000_000  # allow large scans, still stop decompression bombs
+
+# PyMuPDF releases the GIL while it works but is not thread-safe. In the app,
+# page previews, approve/undo, the text view and merging run on different
+# threads, so every entry point that uses it takes this lock. Worker
+# processes are single-threaded, so there it is never contended.
+MUPDF_LOCK = threading.RLock()
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def one_at_a_time(fn: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Run ``fn`` holding :data:`MUPDF_LOCK`."""
+
+    @functools.wraps(fn)
+    def locked(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with MUPDF_LOCK:
+            return fn(*args, **kwargs)
+
+    return locked
 
 
 class Cancelled(Exception):
@@ -334,6 +355,7 @@ def extract_texts(
     return out
 
 
+@one_at_a_time
 def review_text(
     file_path: str,
     file_hash: str,
@@ -359,6 +381,7 @@ def review_text(
         return combine_text(native, hit[0]), (f"Text layer + {label}" if native.strip() else label)
 
 
+@one_at_a_time
 def render_preview(file_path: str, page_idx: int, max_side: int = PREVIEW_MAX_SIDE) -> Image.Image:
     """An RGB rendering of one page for display."""
     with open_source(file_path) as src:
@@ -416,6 +439,7 @@ class _OutputWriter:
         write_bytes_atomic(dest, data)
 
 
+@one_at_a_time
 def export_item(item: ReviewItem, output_dir: str) -> str:
     """Write the output for one manually approved page. Returns its path."""
     with open_source(item.file_path) as src:
@@ -479,6 +503,7 @@ def init_worker(
     )
 
 
+@one_at_a_time
 def process_file(path: str, output_dir: str) -> FileResult:
     """Extract, match and write outputs for one file. Never raises except
     :class:`Cancelled`; failures are reported in the result."""

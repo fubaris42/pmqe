@@ -29,6 +29,18 @@ def ui_theme(qapp):
 
 
 @pytest.fixture(autouse=True)
+def no_unexpected_dialogs(monkeypatch):
+    """Nobody can click a dialog in a headless run: fail instead of hanging.
+    Tests that expect one patch it again themselves."""
+
+    def refuse(_parent, title, text, *_args, **_kwargs):
+        raise AssertionError(f"unexpected dialog: {title}: {text}")
+
+    for name in ("question", "warning", "information", "critical"):
+        monkeypatch.setattr(QMessageBox, name, refuse)
+
+
+@pytest.fixture(autouse=True)
 def clear_clipboard(qapp):
     yield
     # Qt's offscreen platform keeps clipboard data in a C++ global that is freed

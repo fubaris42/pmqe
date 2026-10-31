@@ -20,7 +20,7 @@ from typing import Any
 import fitz
 from PIL import Image, ImageOps
 
-from .extract import Cancelled, content_hash
+from .extract import Cancelled, content_hash, one_at_a_time
 from .models import OUTPUT_NAME_RE
 from .store import MERGED_PDF_NAME, NoRunFound, RunStore
 from .util import atomic_write, long_path, natural_key
@@ -172,6 +172,7 @@ def _save_compact(doc: fitz.Document, path: str) -> None:
         doc.save(path, garbage=4, deflate=True)
 
 
+@one_at_a_time
 def merge_outputs_to_pdf(
     output_dir: str,
     progress: Callable[[int, int], None] | None = None,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 import fitz
@@ -258,3 +259,21 @@ def test_cache_prefers_the_runs_engine(tmp_path: Path):
     assert cache.page("h", 0, "winrt") == ("windows text", "winrt")
     assert cache.page("h", 0, "rapidocr") == ("rapid text", "rapidocr")
     cache.close()
+
+
+def test_pymupdf_calls_from_different_threads_take_turns(tmp_path: Path):
+    """PyMuPDF releases the GIL but is not thread-safe: a preview render must
+    wait while another thread (say, approving a page) is inside it."""
+    pdf = make_pdf(tmp_path / "a.pdf", ["hello"])
+    done = threading.Event()
+
+    def render() -> None:
+        extract.render_preview(str(pdf), 0)
+        done.set()
+
+    with extract.MUPDF_LOCK:
+        worker = threading.Thread(target=render)
+        worker.start()
+        assert not done.wait(0.3)
+    assert done.wait(30)
+    worker.join()

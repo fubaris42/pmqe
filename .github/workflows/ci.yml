@@ -30,6 +30,7 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-14]
         python: ["3.10", "3.13"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20 # a hang fails fast (the stacks are in the log)
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
